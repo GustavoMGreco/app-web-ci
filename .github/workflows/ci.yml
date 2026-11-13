@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 1 - Analise estatica e formatacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verificar formatacao (Prettier)
+        run: npm run format:check
+      - name: Analise estatica (ESLint)
+        run: npm run lint
+
+  build:
+    name: 2 - Build
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build da aplicacao
+        run: npm run build
+
+  test:
+    name: 3 - Testes unitarios e de integracao
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testes unitarios
+        run: npm run test:unit
+      - name: Testes de integracao
+        run: npm run test:integration
+
+  image:
+    name: 4 - Criar imagem Docker
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: app-web-ci:${{ github.sha }}
+      - name: Smoke test do container
+        run: |
+          docker run -d --name app -p 3000:3000 app-web-ci:${{ github.sha }}
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fs http://localhost:3000/health && exit 0
+            sleep 2
+          done
+          docker logs app
+          exit 1
