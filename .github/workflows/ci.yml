@@ -24,12 +24,25 @@ jobs:
       - run: npm ci
       - name: Verificar formatacao (Prettier)
         run: npm run format:check
-      - name: Analise estatica (ESLint)
+      - name: Analise estatica (ESLint + Security Plugin)
         run: npm run lint
 
+  security:
+    name: 2 - Analise de segurança
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Auditoria de vulnerabilidades (npm audit)
+        run: npm audit --audit-level=high
+
   build:
-    name: 2 - Build
-    needs: lint
+    name: 3 - Build
+    needs: [lint, security]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +55,7 @@ jobs:
         run: npm run build
 
   test:
-    name: 3 - Testes unitarios e de integracao
+    name: 4 - Testes unitarios e de integracao
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +71,7 @@ jobs:
         run: npm run test:integration
 
   image:
-    name: 4 - Criar imagem Docker
+    name: 5 - Criar imagem Docker
     needs: test
     runs-on: ubuntu-latest
     steps:

@@ -4,3 +4,4 @@ npm-debug.log
 .github
 coverage
 dist
+data.db
