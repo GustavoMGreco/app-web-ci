@@ -1,0 +1,3 @@
+# Normaliza todos os arquivos de texto para LF no checkout
+* text=auto eol=lf
+
